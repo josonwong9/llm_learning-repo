@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#101c32">
+<title>Transformer 位置编码｜原理图解合集</title>
+<style>
+:root { --bg:#eef3f8; --ink:#10203b; --muted:#596b83; --teal:#0d9488; --indigo:#6366f1; --orange:#f59e0b; --line:#dce5f0; --card:#ffffff; }
+* { box-sizing: border-box; }
+html { scroll-behavior:smooth; }
+body { margin:0; font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans CJK SC", "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+header { background:linear-gradient(125deg,#101c32 0%,#1a3255 64%,#0f766e 140%); color:white; padding:55px 20px 43px; }
+.hero { max-width:1100px; margin:auto; }
+.eyebrow { color:#8ddcd3; font-size:13px; font-weight:800; letter-spacing:.14em; }
+h1 { font-size:clamp(28px,4.1vw,45px); line-height:1.2; margin:13px 0 15px; }
+.lead { max-width:830px; line-height:1.9; margin:0; color:#d6e3f4; font-size:15px; }
+.quicklinks { display:flex; flex-wrap:wrap; gap:9px; margin-top:26px; }
+.quicklinks a { color:#e4f4fb; text-decoration:none; border:1px solid #6d849d; background:#ffffff11; border-radius:8px; padding:9px 12px; font-size:13px; }
+.quicklinks a:hover{background:#ffffff26}
+main { max-width:1140px; margin:0 auto; padding:34px 20px 70px; }
+section.figure { background:white; border:1px solid var(--line); border-radius:20px; padding:25px 26px 22px; margin:0 0 26px; box-shadow:0 8px 24px #223e6210; scroll-margin-top:16px; }
+.figuretop{display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px}
+.figuretitle{display:flex; gap:12px; align-items:center;}
+.number { min-width:39px; height:39px; display:grid; place-items:center; background:#e2f3f1; color:#087c72; font-weight:800; border-radius:11px; }
+h2 { margin:0; font-size:21px; line-height:1.4; }
+.actions { display:flex; gap:8px; flex-wrap:wrap; }
+button { border:1px solid #cddae8; color:#1f3552; background:#f8fbfe; cursor:pointer; padding:9px 13px; border-radius:8px; font-size:13px; font-weight:700; }
+button:hover{background:#edf5fd;border-color:#94b1cc}
+button:focus-visible,input:focus-visible{outline:3px solid #7dd3fc;outline-offset:3px}
+.frame { background:#f8fafc; border:1px solid #ecf0f6; border-radius:13px; overflow:hidden; }
+.frame svg { display:block; width:100%; height:auto; }
+.hint { font-size:14px; color:var(--muted); line-height:1.85; margin:14px 0 0; }
+.sliders { margin:13px 0 0; padding:15px 18px; background:#f0f7ff; border:1px solid #d7e8fb; border-radius:12px; }
+.sliders label{display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; font-weight:750; font-size:15px}
+.sliders input[type=range]{display:block; width:100%; accent-color:#0d9488; margin:15px 0 4px; cursor:pointer;}
+.numeral{font-variant-numeric:tabular-nums; color:#0b8176; font-size:19px; }
+footer {text-align:center; color:#728098; font-size:13px; padding:0 15px 35px; line-height:1.8;}
+@media (max-width:620px){section.figure{padding:15px 11px 18px;border-radius:12px}h2{font-size:17px}.figuretitle{gap:8px}.number{min-width:31px;height:31px}.actions button{font-size:12px;padding:7px 9px} header{padding:38px 18px 32px}main{padding:20px 10px}}
+@media print {body{background:white} header{background:#101c32!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;} .quicklinks,.actions,.sliders{display:none!important} section.figure{break-inside:avoid;box-shadow:none;margin-bottom:16px}.frame{border:none}}
+</style>
+</head>
+<body>
+<header><div class="hero">
+  <div class="eyebrow">TRANSFORMER · POSITIONAL ENCODING</div>
+  <h1>位置编码：一眼看懂原理的 6 张图</h1>
+  <p class="lead">把抽象的“词序、正弦余弦、向量相加、相对距离”拆解成图形。全部图形内嵌于本 HTML，断网也能打开；第三张图可拖动交互，所有图都能保存为 PNG 或 SVG。</p>
+  <nav class="quicklinks"><a href="#fig1">① 词序为何重要</a><a href="#fig2">② RNN vs Transformer</a><a href="#fig3">③ 快慢钟表</a><a href="#fig4">④ 输入流程</a><a href="#fig5">⑤ 相对位置</a><a href="#fig6">⑥ 思维导图</a></nav>
+</div></header>
+<main>
+
+<section class="figure" id="fig1">
+ <div class="figuretop"><div class="figuretitle"><span class="number">01</span><h2>词语一样，顺序不同，含义大不同</h2></div><div class="actions"><button onclick="saveFigure('svg1','png')">保存 PNG</button><button onclick="saveFigure('svg1','svg')">保存 SVG</button></div></div>
+ <div class="frame"><svg id="svg1" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 405" role="img" aria-label="狗咬人和人咬狗的位置编码对比">
+  <rect width="1080" height="405" fill="#f8fafc"/>
+  <rect x="35" y="42" width="480" height="290" rx="19" fill="#eefaf6" stroke="#a7ded1" stroke-width="2"/>
+  <rect x="565" y="42" width="480" height="290" rx="19" fill="#fff7ed" stroke="#f5d3a0" stroke-width="2"/>
+  <text x="275" y="95" fill="#0b806f" text-anchor="middle" font-size="27" font-weight="700">句子 A：狗咬人</text>
+  <text x="805" y="95" fill="#b5681b" text-anchor="middle" font-size="27" font-weight="700">句子 B：人咬狗</text>
+  <g font-size="48" font-weight="750" text-anchor="middle">
+    <rect x="73" y="133" width="120" height="106" rx="15" fill="#caeee2"/><text x="133" y="200" fill="#087f6d">狗</text>
+    <rect x="214" y="133" width="120" height="106" rx="15" fill="#e1e8f4"/><text x="274" y="200" fill="#334c6c">咬</text>
+    <rect x="355" y="133" width="120" height="106" rx="15" fill="#ffdfae"/><text x="415" y="200" fill="#965915">人</text>
+    <rect x="603" y="133" width="120" height="106" rx="15" fill="#ffdfae"/><text x="663" y="200" fill="#965915">人</text>
+    <rect x="744" y="133" width="120" height="106" rx="15" fill="#e1e8f4"/><text x="804" y="200" fill="#334c6c">咬</text>
+    <rect x="885" y="133" width="120" height="106" rx="15" fill="#caeee2"/><text x="945" y="200" fill="#087f6d">狗</text>
+  </g>
+  <g font-size="17" text-anchor="middle" fill="#51667d"><text x="133" y="267">位置 0</text><text x="274" y="267">位置 1</text><text x="415" y="267">位置 2</text><text x="663" y="267">位置 0</text><text x="804" y="267">位置 1</text><text x="945" y="267">位置 2</text></g>
+  <text x="275" y="302" text-anchor="middle" fill="#087f6d" font-size="21" font-weight="650">狗是动作发出者</text>
+  <text x="805" y="302" text-anchor="middle" fill="#ac6315" font-size="21" font-weight="650">人是动作发出者</text>
+  <text x="540" y="373" text-anchor="middle" fill="#30455e" font-size="23" font-weight="650">Token 的内容相同，但位置发生改变 → 语义就可能完全不同</text>
+ </svg></div>
+ <p class="hint">先认识两类信息：<b>Token Embedding</b> 表示“是什么词”，<b>Positional Encoding</b> 表示“词在哪”。注意力机制需要两类信息来判断句子含义。</p>
+</section>
+
+<section class="figure" id="fig2">
+ <div class="figuretop"><div class="figuretitle"><span class="number">02</span><h2>RNN 天然依次处理；Attention 本身不带顺序</h2></div><div class="actions"><button onclick="saveFigure('svg2','png')">保存 PNG</button><button onclick="saveFigure('svg2','svg')">保存 SVG</button></div></div>
+ <div class="frame"><svg id="svg2" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 440" role="img" aria-label="RNN串行处理和Transformer注意力并行交互示意图">
+  <defs><marker id="arr2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#64748b"/></marker></defs>
+  <rect width="1080" height="440" fill="#f8fafc"/>
+  <rect x="30" y="36" width="495" height="340" rx="18" fill="#eaf8f4" stroke="#b6e3d7" stroke-width="2"/>
+  <rect x="555" y="36" width="495" height="340" rx="18" fill="#eef0ff" stroke="#cacdfa" stroke-width="2"/>
+  <text x="278" y="84" text-anchor="middle" fill="#087b70" font-size="27" font-weight="750">RNN：流水线式串行处理</text>
+  <text x="803" y="84" text-anchor="middle" fill="#5356bd" font-size="27" font-weight="750">Transformer：并行交互</text>
+  <g stroke="#64748b" stroke-width="3" marker-end="url(#arr2)"><path d="M144 186 H187"/><path d="M253 186 H296"/><path d="M362 186 H405"/></g>
+  <g fill="#0d9488"><rect x="80" y="144" width="65" height="82" rx="12"/><rect x="188" y="144" width="65" height="82" rx="12"/><rect x="297" y="144" width="65" height="82" rx="12"/><rect x="406" y="144" width="65" height="82" rx="12"/></g>
+  <g fill="#fff" font-size="30" text-anchor="middle" font-weight="700"><text x="112" y="195">1</text><text x="220" y="195">2</text><text x="329" y="195">3</text><text x="438" y="195">4</text></g>
+  <text x="277" y="269" text-anchor="middle" fill="#3c6470" font-size="20">先处理 1，再处理 2、3、4</text><text x="277" y="318" text-anchor="middle" fill="#284f4b" font-size="22" font-weight="700">处理顺序自然保留</text>
+  <g stroke="#818cf8" stroke-width="3" opacity=".9"><path d="M656 172 L758 172 L860 172 L961 172"/><path d="M656 172 Q808 62 961 172"/><path d="M656 172 Q758 292 860 172"/><path d="M758 172 Q860 280 961 172"/><path d="M758 172 Q812 100 860 172"/></g>
+  <g fill="#6366f1"><rect x="619" y="134" width="74" height="76" rx="13"/><rect x="720" y="134" width="74" height="76" rx="13"/><rect x="821" y="134" width="74" height="76" rx="13"/><rect x="922" y="134" width="74" height="76" rx="13"/></g>
+  <g fill="#fff" font-size="30" text-anchor="middle" font-weight="700"><text x="656" y="183">1</text><text x="757" y="183">2</text><text x="858" y="183">3</text><text x="959" y="183">4</text></g>
+  <text x="803" y="269" text-anchor="middle" fill="#525c96" font-size="20">各个词可同时计算关联</text><text x="803" y="318" text-anchor="middle" fill="#4248a7" font-size="22" font-weight="700">需要另行提供位置信息</text>
+  <text x="540" y="414" fill="#30455e" font-size="22" font-weight="650" text-anchor="middle">位置编码就像给同时开会的每个人挂上“座位号”</text>
+ </svg></div>
+ <p class="hint">这是为了建立直觉而画的简化对比：自注意力的内容相似度计算本身对输入顺序不敏感，所以 Transformer 需要额外机制表达顺序。</p>
+</section>
+
+<section class="figure" id="fig3">
+ <div class="figuretop"><div class="figuretitle"><span class="number">03</span><h2>正弦 + 余弦：用快慢钟表编码位置</h2></div><div class="actions"><button onclick="saveFigure('svg3','png')">保存当前图 PNG</button><button onclick="saveFigure('svg3','svg')">保存当前图 SVG</button></div></div>
+ <div class="frame"><svg id="svg3" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 565" role="img" aria-label="可交互的快钟慢钟位置编码及四维数值">
+  <rect width="1080" height="565" fill="#f8fafc"/>
+  <text x="540" y="55" font-size="27" font-weight="750" text-anchor="middle" fill="#193450">当前 Token 位置 <tspan id="posTitle" fill="#0d9488">10</tspan></text>
+  <rect x="48" y="86" width="465" height="348" rx="19" fill="#eaf8f4" stroke="#bce4db" stroke-width="2"/>
+  <rect x="567" y="86" width="465" height="348" rx="19" fill="#efefff" stroke="#d0d2f6" stroke-width="2"/>
+  <text x="280" y="132" text-anchor="middle" font-size="26" font-weight="750" fill="#0b8477">快钟 · 高频</text>
+  <text x="799" y="132" text-anchor="middle" font-size="26" font-weight="750" fill="#5759c2">慢钟 · 低频</text>
+  <circle cx="280" cy="262" r="93" fill="#fff" stroke="#0d9488" stroke-width="4"/>
+  <circle cx="799" cy="262" r="93" fill="#fff" stroke="#6366f1" stroke-width="4"/>
+  <g stroke="#91a3b6" stroke-width="3"><path d="M280 177 v14 M280 333 v14 M195 262 h14 M351 262 h14"/><path d="M799 177 v14 M799 333 v14 M714 262 h14 M870 262 h14"/></g>
+  <line id="handFast" x1="280" y1="262" x2="200" y2="262" stroke="#0d9488" stroke-width="7" stroke-linecap="round"/>
+  <line id="handSlow" x1="799" y1="262" x2="719" y2="262" stroke="#6366f1" stroke-width="7" stroke-linecap="round"/>
+  <circle cx="280" cy="262" r="7" fill="#0d9488"/><circle cx="799" cy="262" r="7" fill="#6366f1"/>
+  <text x="280" y="391" fill="#31766d" text-anchor="middle" font-size="19">相邻 Token 大约转 57.3°</text>
+  <text x="799" y="391" fill="#5759a0" text-anchor="middle" font-size="19">相邻 Token 大约转 0.57°</text>
+  <g font-size="18" font-weight="650" fill="#496078"><text x="100" y="485">sin(pos) =</text><text x="349" y="485">cos(pos) =</text><text x="617" y="485">sin(pos/100) =</text><text x="866" y="485">cos(pos/100) =</text></g>
+  <g font-size="24" font-weight="750"><text x="210" y="485" id="sinFast" fill="#0c897d">—</text><text x="448" y="485" id="cosFast" fill="#0c897d">—</text><text x="763" y="485" id="sinSlow" fill="#5759c2">—</text><text x="1008" y="485" id="cosSlow" fill="#5759c2">—</text></g>
+  <text x="540" y="535" fill="#344a66" font-size="22" font-weight="700" text-anchor="middle">这四个读数合在一起，就构成一个简化的 4 维位置向量</text>
+ </svg></div>
+ <div class="sliders"><label for="positionSlider">拖动这里，改变 Token 位置 <output class="numeral" id="positionValue">10</output></label><input id="positionSlider" type="range" min="0" max="400" value="10" step="1"/><div style="font-size:12px;color:#60738b">观察：快钟转得快、慢钟转得慢。不同频率共同提供位置特征。导出的图片会保留当前指针状态。</div></div>
+ <p class="hint">简化公式：<b>PE(pos) = [sin(pos), cos(pos), sin(pos/100), cos(pos/100)]</b>（假设向量维度为 4）。真实模型通常采用更多组不同频率。</p>
+</section>
+
+<section class="figure" id="fig4">
+ <div class="figuretop"><div class="figuretitle"><span class="number">04</span><h2>Embedding + 位置编码：如何送进 Transformer？</h2></div><div class="actions"><button onclick="saveFigure('svg4','png')">保存 PNG</button><button onclick="saveFigure('svg4','svg')">保存 SVG</button></div></div>
+ <div class="frame"><svg id="svg4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 655" role="img" aria-label="Token经过语义嵌入与位置编码后相加送进Transformer">
+  <defs><marker id="arr4" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 Z" fill="#667b94"/></marker></defs>
+  <rect width="1080" height="655" fill="#f8fafc"/>
+  <rect x="363" y="26" width="354" height="82" rx="14" fill="#253955"/><text x="540" y="61" font-size="22" fill="#fff" font-weight="700" text-anchor="middle">输入 Token</text><text x="540" y="88" font-size="18" fill="#cce1f2" text-anchor="middle">我 ／ 喜欢 ／ 学习</text>
+  <path d="M540 108 V137 H275 V158 M540 137 H805 V158" fill="none" stroke="#667b94" stroke-width="3" marker-end="url(#arr4)"/>
+  <rect x="67" y="159" width="420" height="159" rx="18" fill="#e4f7f1" stroke="#89d5c2" stroke-width="2"/>
+  <rect x="593" y="159" width="420" height="159" rx="18" fill="#eeedff" stroke="#aaa9f5" stroke-width="2"/>
+  <text x="277" y="207" text-anchor="middle" fill="#0c766d" font-size="29" font-weight="750">Token Embedding</text>
+  <text x="803" y="207" text-anchor="middle" fill="#5452b3" font-size="29" font-weight="750">Positional Encoding</text>
+  <text x="277" y="249" text-anchor="middle" fill="#305c57" font-size="19">把词转换为语义向量</text>
+  <text x="803" y="249" text-anchor="middle" fill="#5c60a3" font-size="19">把位置转换为位置向量</text>
+  <text x="277" y="282" text-anchor="middle" fill="#26887a" font-size="18">表示“是什么词”</text>
+  <text x="803" y="282" text-anchor="middle" fill="#6563c9" font-size="18">表示“在第几个位置”</text>
+  <path d="M277 319 V359 H504 M803 319 V359 H576" fill="none" stroke="#667b94" stroke-width="3" marker-end="url(#arr4)"/>
+  <circle cx="540" cy="359" r="37" fill="#fff" stroke="#8ca0b6" stroke-width="3"/>
+  <text x="540" y="372" text-anchor="middle" fill="#27445f" font-size="47" font-weight="500">+</text>
+  <path d="M540 397 V431" stroke="#667b94" stroke-width="3" marker-end="url(#arr4)"/>
+  <rect x="240" y="433" width="600" height="88" rx="16" fill="#e6edf8" stroke="#bccde6" stroke-width="2"/>
+  <text x="540" y="469" font-size="26" font-weight="750" text-anchor="middle" fill="#27435f">逐元素相加：带有位置的输入向量</text>
+  <text x="540" y="501" font-size="17" text-anchor="middle" fill="#607b94">向量维度保持不变</text>
+  <path d="M540 521 V556" stroke="#667b94" stroke-width="3" marker-end="url(#arr4)"/>
+  <rect x="300" y="558" width="480" height="70" rx="15" fill="#5a60d4"/>
+  <text x="540" y="602" font-size="28" fill="#fff" font-weight="750" text-anchor="middle">Transformer Attention</text>
+ </svg></div>
+ <p class="hint">原始 Transformer 使用<b>同维度向量逐元素相加</b>，例如 [0.2, 0.5] + [0.8, 0.3] = [1.0, 0.8]。注意：RoPE 等现代位置编码采用不同的施加方式。</p>
+</section>
+
+<section class="figure" id="fig5">
+ <div class="figuretop"><div class="figuretitle"><span class="number">05</span><h2>绝对位置 vs 相对位置：距离相同就有共同规律</h2></div><div class="actions"><button onclick="saveFigure('svg5','png')">保存 PNG</button><button onclick="saveFigure('svg5','svg')">保存 SVG</button></div></div>
+ <div class="frame"><svg id="svg5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 375" role="img" aria-label="两组不同绝对位置但相对间距同为2的Token">
+  <defs><marker id="arr5" viewBox="0 0 10 10" refX="5" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10Z" fill="#7c83d7"/></marker></defs>
+  <rect width="1080" height="375" fill="#f8fafc"/>
+  <rect x="38" y="45" width="484" height="240" rx="17" fill="#eaf8f4" stroke="#bbdfd4" stroke-width="2"/>
+  <rect x="558" y="45" width="484" height="240" rx="17" fill="#efefff" stroke="#cacbf7" stroke-width="2"/>
+  <g font-size="24" font-weight="750" text-anchor="middle"><text x="280" y="85" fill="#117b70">句子 A</text><text x="800" y="85" fill="#5755c0">句子 B</text></g>
+  <g stroke="#93a6ba" stroke-width="2"><path d="M110 196 H452"/><path d="M630 196 H972"/></g>
+  <g><circle cx="154" cy="196" r="35" fill="#0d9488"/><circle cx="400" cy="196" r="35" fill="#0d9488"/><circle cx="674" cy="196" r="35" fill="#6366f1"/><circle cx="920" cy="196" r="35" fill="#6366f1"/></g>
+  <g font-size="22" fill="#fff" font-weight="700" text-anchor="middle"><text x="154" y="203">A</text><text x="400" y="203">B</text><text x="674" y="203">C</text><text x="920" y="203">D</text></g>
+  <g fill="#334e67" font-size="18" text-anchor="middle"><text x="154" y="258">位置 3</text><text x="400" y="258">位置 5</text><text x="674" y="258">位置 10</text><text x="920" y="258">位置 12</text></g>
+  <g stroke="#7c83d7" stroke-width="3" marker-start="url(#arr5)" marker-end="url(#arr5)"><path d="M166 125 H387"/><path d="M686 125 H907"/></g>
+  <g font-size="18" fill="#5b5cbc" font-weight="700" text-anchor="middle"><text x="277" y="115">相距 2</text><text x="798" y="115">相距 2</text></g>
+  <text x="540" y="339" font-size="23" font-weight="700" fill="#29475f" text-anchor="middle">绝对位置不同，但相对位移相同：5 − 3 = 12 − 10 = 2</text>
+ </svg></div>
+ <p class="hint">固定频率下的 sin/cos 位置对可以通过旋转变换来表达“移动了多少位置”。因此原始正弦位置编码虽是<b>绝对编码</b>，但有利于模型学习相对距离规律。</p>
+</section>
+
+<section class="figure" id="fig6">
+ <div class="figuretop"><div class="figuretitle"><span class="number">06</span><h2>知识总览：位置编码的思维导图</h2></div><div class="actions"><button onclick="saveFigure('svg6','png')">保存 PNG</button><button onclick="saveFigure('svg6','svg')">保存 SVG</button></div></div>
+ <div class="frame"><svg id="svg6" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1080 860" role="img" aria-label="位置编码完整原理思维导图">
+  <defs><marker id="arr6" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10Z" fill="#8295aa"/></marker></defs>
+  <rect width="1080" height="860" fill="#f8fafc"/>
+  <rect x="310" y="25" width="460" height="77" rx="15" fill="#203a58"/>
+  <text x="540" y="74" text-anchor="middle" fill="#fff" font-weight="750" font-size="27">Transformer 必须理解词语顺序</text>
+  <path d="M540 102 V141" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="247" y="144" width="586" height="77" rx="15" fill="#e6edf6" stroke="#c5d4e6" stroke-width="2"/>
+  <text x="540" y="190" text-anchor="middle" fill="#2e4b69" font-size="25" font-weight="700">Self-Attention 本身不自带词序编号</text>
+  <path d="M540 221 V260" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="280" y="263" width="520" height="74" rx="15" fill="#dcefe9" stroke="#a4d6c6" stroke-width="2"/>
+  <text x="540" y="308" fill="#087b6d" font-size="26" font-weight="750" text-anchor="middle">需要 Positional Encoding</text>
+  <path d="M540 338 V373 H187 V400 M540 373 V400 M540 373 H893 V400" fill="none" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="25" y="402" width="326" height="101" rx="15" fill="#ffeded" stroke="#f4b8b8" stroke-width="2"/>
+  <rect x="377" y="402" width="326" height="101" rx="15" fill="#fff5e7" stroke="#f0d0a4" stroke-width="2"/>
+  <rect x="729" y="402" width="326" height="101" rx="15" fill="#ddf6e9" stroke="#89d3b6" stroke-width="2"/>
+  <g font-size="25" font-weight="750" text-anchor="middle"><text x="188" y="441" fill="#a14349">整数编号</text><text x="540" y="441" fill="#9b631d">二进制编号</text><text x="892" y="441" fill="#067865">sin / cos 编码</text></g>
+  <g font-size="20" text-anchor="middle"><text x="188" y="476" fill="#a86568">数字无界增长</text><text x="540" y="476" fill="#a98553">相邻位置可能突变</text><text x="892" y="476" fill="#167969">有界、连续、多频率</text></g>
+  <path d="M892 503 V546 H540 V569" fill="none" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="227" y="573" width="626" height="91" rx="15" fill="#d9f1ed" stroke="#8ad1c7" stroke-width="2"/>
+  <text x="540" y="611" fill="#087b70" font-size="27" font-weight="750" text-anchor="middle">多组不同频率的 sin/cos</text>
+  <text x="540" y="644" fill="#3e7a72" font-size="19" text-anchor="middle">好比多个转速不同的钟表组成一个“位置指纹”</text>
+  <path d="M540 664 V698" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="250" y="700" width="580" height="70" rx="14" fill="#e8edf9" stroke="#c4cfef" stroke-width="2"/>
+  <text x="540" y="744" text-anchor="middle" fill="#3d4e8d" font-size="25" font-weight="750">Embedding + 位置向量 → Transformer</text>
+  <path d="M540 770 V794" stroke="#8295aa" stroke-width="3" marker-end="url(#arr6)"/>
+  <rect x="252" y="796" width="576" height="47" rx="12" fill="#545bc5"/>
+  <text x="540" y="826" text-anchor="middle" fill="#fff" font-size="22" font-weight="750">提供绝对位置，帮助学习相对位置</text>
+ </svg></div>
+ <p class="hint">记忆口诀：<b>词向量管“是什么”，位置编码管“在哪里”；多个快慢不同的钟表，让 Transformer 看见顺序。</b></p>
+</section>
+
+</main>
+<footer>基于本次对话中对 Transformer 位置编码的图解整理 · 单文件离线 HTML · 所有插图为原生矢量 SVG，可分别导出</footer>
+<script>
+(function(){
+  'use strict';
+  const slider = document.getElementById('positionSlider');
+  function update(position){
+    const pos = Number(position);
+    document.getElementById('positionValue').textContent = pos;
+    document.getElementById('posTitle').textContent = pos;
+    const fast = pos;
+    const slow = pos / 100;
+    document.getElementById('handFast').setAttribute('x2', String(280 + 75*Math.cos(fast)));
+    document.getElementById('handFast').setAttribute('y2', String(262 - 75*Math.sin(fast)));
+    document.getElementById('handSlow').setAttribute('x2', String(799 + 75*Math.cos(slow)));
+    document.getElementById('handSlow').setAttribute('y2', String(262 - 75*Math.sin(slow)));
+    ['sinFast','cosFast','sinSlow','cosSlow'].forEach((id,i)=>{
+      const value = [Math.sin(fast),Math.cos(fast),Math.sin(slow),Math.cos(slow)][i];
+      document.getElementById(id).textContent = value.toFixed(3);
+    });
+  }
+  slider.addEventListener('input', e=>update(e.target.value));
+  update(slider.value);
+
+  const names={svg1:'01-token-词序对比',svg2:'02-rnn-transformer-对比',svg3:'03-sin-cos-快慢钟表',svg4:'04-位置编码输入流程',svg5:'05-绝对与相对位置',svg6:'06-位置编码思维导图'};
+  function download(blob,filename){
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),2500);
+  }
+  window.saveFigure=async function(id, format){
+    const target=document.getElementById(id);
+    if(!target){alert('没有找到图片');return;}
+    const copy=target.cloneNode(true);
+    copy.setAttribute('xmlns','http://www.w3.org/2000/svg');
+    copy.setAttribute('width','1080');
+    const vb=target.viewBox.baseVal;
+    copy.setAttribute('height',String(vb.height));
+    const source=new XMLSerializer().serializeToString(copy);
+    const svgBlob=new Blob([source],{type:'image/svg+xml;charset=utf-8'});
+    const name=names[id]||id;
+    if(format==='svg') {download(svgBlob,name+'.svg');return;}
+    try {
+      const url=URL.createObjectURL(svgBlob);
+      const img=new Image();
+      await new Promise((resolve,reject)=>{img.onload=resolve;img.onerror=reject;img.src=url;});
+      const scale=2;
+      const canvas=document.createElement('canvas');canvas.width=vb.width*scale;canvas.height=vb.height*scale;
+      const ctx=canvas.getContext('2d');ctx.scale(scale,scale);ctx.drawImage(img,0,0,vb.width,vb.height);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob=>{if(blob) download(blob,name+'.png'); else alert('PNG 导出失败，请尝试保存 SVG');},'image/png');
+    } catch(error){console.error(error);alert('PNG 导出失败，请尝试保存 SVG');}
+  };
+})();
+</script>
+</body>
+</html>
